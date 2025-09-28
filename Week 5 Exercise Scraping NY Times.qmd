@@ -1,0 +1,93 @@
+---
+title: "Zepeda Week 5 Exercise"
+format: pdf
+editor: visual
+execute: 
+  echo: true
+---
+
+# PA 466 - Week 5 Exercise
+
+By: Austin Zepeda
+
+## Extract a table of articles from the NY Times
+
+Go to the web link https://www.nytimes.com/topic/subject/elections. Extract data from the
+“Latest” section and create a table comprising three variables (Article Name, Article Description
+(the short text after the title), and Author Name). Extract information on at least ten articles.
+Ideally, the table will have three columns and at least ten rows. Make sure to include both the
+source code and output in your final submission document. \[30 pts\]
+
+### Code
+
+```{r}
+library(tidyverse)
+library(rvest)
+
+url = "https://www.nytimes.com/section/us/elections"
+html = read_html(url)
+
+section = html |>
+  html_elements("ol") |>
+  head(10)
+
+#use section vector to parse table data
+
+article_name = section |>
+  html_elements("h3")
+article_name = gsub("<[^>]+>", "", article_name)
+length(article_name) # 10 articles
+
+article_description = section |>
+  html_elements("p.css-1pga48a.e15t083i1") |>
+  html_text2()
+
+author_name = section |>
+  html_elements("p.css-1y3ykdt.e140qd2t0") |>
+  html_text2()
+author_name = gsub("^By\\s+", "", author_name)
+length(author_name) # only 5, which will mess up the table.
+
+# I used ChatGPT to help with this. Prompt: Let's try looking in the broader 
+# article class "article.css-1l4spti" and if there are authors listed 
+# "p.css-1y3ykdt.e140qd2t0", then parse them. Otherwise, NA.
+
+# Response:
+
+# Step 1: grab each article
+articles <- section %>% html_elements("article.css-1l4spti")
+
+# Step 2: for each article, try to extract the author
+author <- sapply(articles, function(article) {
+  el <- html_element(article, "p.css-1y3ykdt.e140qd2t0")
+  if (is.null(el)) NA_character_ else html_text(el)
+})
+
+length(author) # good.
+author = gsub("^By\\s+", "", author)
+
+
+ny_times = tibble(
+  article_name,
+  article_description,
+  author
+)
+ny_times
+
+# I asked ChatGPT to render a more stylized, readable table in the PDF by
+# selecting the first 30 characters of each observation.
+
+ny_times_trimmed <- ny_times %>%
+  mutate(
+    article_name = substr(article_name, 1, 30),
+    article_description = substr(article_description, 1, 30),
+    author = substr(author, 1, 30)
+  )
+
+library(kableExtra)
+
+ny_times_trimmed %>%
+  kable("latex", booktabs = TRUE, caption = "NY Times Election Articles") %>%
+  kable_styling(latex_options = c("striped", "hold_position"))
+
+```
